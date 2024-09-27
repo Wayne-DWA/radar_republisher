@@ -21,13 +21,15 @@ public:
   }
 
   void pc2_callback(const sensor_msgs::PointCloud2::ConstPtr&  hugin_msg) {
-    const auto radar_msg = RadarConverter.convert(*hugin_msg);
-    msg_pub.publish(radar_msg);
+    auto radar_msg = RadarConverter.convert(*hugin_msg);
+    const auto filter_radar_msg = RadarConverter.filter(radar_msg);
+    msg_pub.publish(filter_radar_msg);
   }
 
   void pc_callback(const sensor_msgs::PointCloud::ConstPtr&  eagle_msg) {
-    const auto radar_msg = RadarConverter.convert(*eagle_msg);
-    msg_pub.publish(radar_msg);
+    auto radar_msg = RadarConverter.convert(*eagle_msg);
+    const auto filter_radar_msg = RadarConverter.filter(radar_msg);
+    msg_pub.publish(filter_radar_msg);
   }
 private:
   ros::NodeHandle nh;
