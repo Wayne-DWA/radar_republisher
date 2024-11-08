@@ -1,0 +1,10 @@
+<launch>
+    <node name="radar_republisher_node" pkg="radar_republisher" type="radar_republisher_node" output="screen">
+        <!-- Add any necessary arguments or parameters here -->
+        <param name = "radar_topic_pc"  value = "/radar_enhanced_pcl_1" />
+        <param name = "radar_topic_pc2" value = "/hugin_raf_1/radar_data_1" />
+        <param name = "radar_topic_ars" value = "/ars548_1" />
+        <param name = "radar_topic_eagle_pc2" value = "/radar_enhanced_pcl2" />
+        <param name = "debug_mode"      value = "true" />
+    </node>
+</launch>
