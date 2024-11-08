@@ -58,7 +58,62 @@ POINT_CLOUD_REGISTER_POINT_STRUCT
     (float, intensity, intensity)
     (float, doppler, doppler)
 )
+namespace ars_ros {
+  struct EIGEN_ALIGN16 Point {
+      PCL_ADD_POINT4D;
+      float doppler;
+      float intensity;
+      float range_std;
+      float azimuth_std;    //yaw
+      float elevation_std;  //pitch
+      float doppler_std;
+      EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+  };
+}  // namespace ars_ros
 
+POINT_CLOUD_REGISTER_POINT_STRUCT(ars_ros::Point,
+    (float, x, x)
+    (float, y, y)
+    (float, z, z)
+    (float, doppler, doppler)
+    (float, intensity, intensity)
+    (float, range_std, range_std)
+    (float, azimuth_std, azimuth_std)
+    (float, elevation_std, elevation_std)
+    (float, doppler_std, doppler_std)
+)
+namespace eagle_ros {
+  struct EIGEN_ALIGN16 Point {
+      PCL_ADD_POINT4D;
+      float Doppler;
+      float Power;
+      float Range;
+      float Alpha;  
+      float Beta;  
+      float rangeAccu;
+      float aziAccu;
+      float eleAccu;
+      float dopplerAccu;
+      float recoveredSpeed;
+      EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+  };
+}  // namespace eagle_ros
+
+POINT_CLOUD_REGISTER_POINT_STRUCT(eagle_ros::Point,
+    (float, x, x)
+    (float, y, y)
+    (float, z, z)
+    (float, Doppler, Doppler)
+    (float, Power, Power)
+    (float, Range, Range)
+    (float, Alpha, Alpha)
+    (float, Beta, Beta)
+    (float, rangeAccu, rangeAccu)
+    (float, aziAccu, aziAccu)
+    (float, eleAccu, eleAccu)
+    (float, dopplerAccu, dopplerAccu)
+    (float, recoveredSpeed, recoveredSpeed)
+)
 class RadarMsgConverter {
 public:
   RadarMsgConverter() {
@@ -103,6 +158,48 @@ public:
     }
     pcl::toROSMsg(*radarcloud_raw, *pc2_raw_msg);
     pc2_raw_msg->header = radar_msg.header;
+    return pc2_raw_msg;
+  }
+  PointCloud2ConstPtr convert_ars(const PointCloud2& ars_msg){
+    //********** Convert ars_ros_msg to RadarPointCloud **********
+    pcl::PointCloud<ars_ros::Point> ars_raw;
+    pcl::PointCloud<RadarPointCloudType>::Ptr radarcloud_raw( new pcl::PointCloud<RadarPointCloudType> );
+    pcl::fromROSMsg(ars_msg, ars_raw);
+    int point_size = ars_raw.points.size();
+    radarcloud_raw->reserve(point_size);
+    RadarPointCloudType radarpoint_raw;
+    for (size_t i = 0; i < point_size; ++i)
+    {
+        radarpoint_raw.x = ars_raw.points[i].x;
+        radarpoint_raw.y = ars_raw.points[i].y;
+        radarpoint_raw.z = ars_raw.points[i].z;
+        radarpoint_raw.intensity = ars_raw.points[i].intensity;
+        radarpoint_raw.doppler = ars_raw.points[i].doppler_std;
+        radarcloud_raw->points.push_back(radarpoint_raw);
+    }
+    pcl::toROSMsg(*radarcloud_raw, *pc2_raw_msg);
+    pc2_raw_msg->header = ars_msg.header;
+    return pc2_raw_msg;
+  }
+  PointCloud2ConstPtr convert_eagle(const PointCloud2& eagle_msg){
+    //********** Convert eagle_msg to RadarPointCloud **********
+    pcl::PointCloud<eagle_ros::Point> eagle_raw;
+    pcl::PointCloud<RadarPointCloudType>::Ptr radarcloud_raw( new pcl::PointCloud<RadarPointCloudType> );
+    pcl::fromROSMsg(eagle_msg, eagle_raw);
+    int point_size = eagle_raw.points.size();
+    radarcloud_raw->reserve(point_size);
+    RadarPointCloudType radarpoint_raw;
+    for (size_t i = 0; i < point_size; ++i)
+    {
+        radarpoint_raw.x = eagle_raw.points[i].x;
+        radarpoint_raw.y = eagle_raw.points[i].y;
+        radarpoint_raw.z = eagle_raw.points[i].z;
+        radarpoint_raw.intensity = eagle_raw.points[i].Power;
+        radarpoint_raw.doppler = eagle_raw.points[i].Doppler;
+        radarcloud_raw->points.push_back(radarpoint_raw);
+    }
+    pcl::toROSMsg(*radarcloud_raw, *pc2_raw_msg);
+    pc2_raw_msg->header = eagle_msg.header;
     return pc2_raw_msg;
   }
   PointCloud2ConstPtr filter(const PointCloud2ConstPtr& radar_msg) {
