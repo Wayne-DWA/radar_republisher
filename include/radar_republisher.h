@@ -207,8 +207,9 @@ public:
     sensor_msgs::PointCloud2 inlier_radar_msg;
     Eigen::Vector3d v_r, sigma_v_r;
     ego_velocity_estimator_.estimate(*radar_msg, v_r, sigma_v_r, inlier_radar_msg, outlier_radar_msg);
-        // Create a shared pointer for the inlier message
+    // Create a shared pointer for the inlier message
     PointCloud2Ptr inlier_radar_msg_ptr = boost::make_shared<sensor_msgs::PointCloud2>(inlier_radar_msg);
+    // std::cout << "v_r: " << v_r << std::endl;
 
     return inlier_radar_msg_ptr;
   }
