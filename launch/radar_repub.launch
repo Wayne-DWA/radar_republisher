@@ -6,5 +6,7 @@
         <param name = "radar_topic_ars" value = "/ars548_1" />
         <param name = "radar_topic_eagle_pc2" value = "/radar_enhanced_pcl2" />
         <param name = "debug_mode"      value = "true" />
+        <param name = "lsq_filter"      value = "true" />
+
     </node>
 </launch>
