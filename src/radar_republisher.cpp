@@ -33,42 +33,66 @@ public:
   void pc2_callback(const sensor_msgs::PointCloud2::ConstPtr&  hugin_msg) {
     auto raw_msg_size = hugin_msg->width;
     auto radar_msg = RadarConverter.convert(*hugin_msg);
-    const auto filter_radar_msg = RadarConverter.filter(radar_msg);
+    auto filter_result = RadarConverter.filter(radar_msg);
+    const auto filter_radar_msg = filter_result.first;
+    const auto filter_velocity = filter_result.second;
     auto filter_msg_size = filter_radar_msg->width;
     auto lost_msg_size = raw_msg_size - filter_msg_size;
     float lost_rate = 100 * (static_cast<float>(lost_msg_size) / raw_msg_size);
-    if(debug) ROS_INFO_STREAM_THROTTLE(1, "size of lost radar points: " << lost_msg_size << "  lost rate: " << lost_rate << " %");
+    if(debug)
+    {
+      ROS_INFO_STREAM_THROTTLE(1, "size of lost radar points: " << lost_msg_size << "  lost rate: " << lost_rate << " %");
+      ROS_INFO_STREAM_THROTTLE(1, "v_x: " << filter_velocity.x() << " v_y: " << filter_velocity.y() << " v_z: " << filter_velocity.z());
+    } 
     msg_pub.publish(filter_radar_msg);
   }
 
   void pc_callback(const sensor_msgs::PointCloud::ConstPtr&  eagle_msg) {
     auto raw_msg_size = eagle_msg->points.size();
     auto radar_msg = RadarConverter.convert(*eagle_msg);
-    const auto filter_radar_msg = RadarConverter.filter(radar_msg);
+    auto filter_result = RadarConverter.filter(radar_msg);
+    const auto filter_radar_msg = filter_result.first;
+    const auto filter_velocity = filter_result.second;
     auto filter_msg_size = filter_radar_msg->width;
     auto lost_msg_size = raw_msg_size - filter_msg_size;
     float lost_rate = 100 * (static_cast<float>(lost_msg_size) / raw_msg_size);
-    if(debug) ROS_INFO_STREAM_THROTTLE(1, "size of lost radar points: " << lost_msg_size << "  lost rate: " << lost_rate << " %");
+    if(debug)
+    {
+      ROS_INFO_STREAM_THROTTLE(1, "size of lost radar points: " << lost_msg_size << "  lost rate: " << lost_rate << " %");
+      ROS_INFO_STREAM_THROTTLE(1, "v_x: " << filter_velocity.x() << " v_y: " << filter_velocity.y() << " v_z: " << filter_velocity.z());
+    } 
     msg_pub.publish(filter_radar_msg);
   }
   void ars_pc2_callback(const sensor_msgs::PointCloud2::ConstPtr&  ars_msg) {
     auto raw_msg_size = ars_msg->width;
     auto radar_msg = RadarConverter.convert_ars(*ars_msg);
-    const auto filter_radar_msg = RadarConverter.filter(ars_msg);
+    auto filter_result = RadarConverter.filter(radar_msg);
+    const auto filter_radar_msg = filter_result.first;
+    const auto filter_velocity = filter_result.second;
     auto filter_msg_size = filter_radar_msg->width;
     auto lost_msg_size = raw_msg_size - filter_msg_size;
     float lost_rate = 100 * (static_cast<float>(lost_msg_size) / raw_msg_size);
-    if(debug) ROS_INFO_STREAM_THROTTLE(1, "size of lost radar points: " << lost_msg_size << "  lost rate: " << lost_rate << " %");
+    if(debug)
+    {
+      ROS_INFO_STREAM_THROTTLE(1, "size of lost radar points: " << lost_msg_size << "  lost rate: " << lost_rate << " %");
+      ROS_INFO_STREAM_THROTTLE(1, "v_x: " << filter_velocity.x() << " v_y: " << filter_velocity.y() << " v_z: " << filter_velocity.z());
+    } 
     msg_pub.publish(filter_radar_msg);
   }
   void eagle_pc2_callback(const sensor_msgs::PointCloud2::ConstPtr&  eagle_msg) {
     auto raw_msg_size = eagle_msg->width;
     auto radar_msg = RadarConverter.convert_eagle(*eagle_msg);
-    const auto filter_radar_msg = RadarConverter.filter(radar_msg);
+    auto filter_result = RadarConverter.filter(radar_msg);
+    const auto filter_radar_msg = filter_result.first;
+    const auto filter_velocity = filter_result.second;
     auto filter_msg_size = filter_radar_msg->width;
     auto lost_msg_size = raw_msg_size - filter_msg_size;
     float lost_rate = 100 * (static_cast<float>(lost_msg_size) / raw_msg_size);
-    if(debug) ROS_INFO_STREAM_THROTTLE(1, "size of lost radar points: " << lost_msg_size << "  lost rate: " << lost_rate << " %");
+    if(debug)
+    {
+      ROS_INFO_STREAM_THROTTLE(1, "size of lost radar points: " << lost_msg_size << "  lost rate: " << lost_rate << " %");
+      ROS_INFO_STREAM_THROTTLE(1, "v_x: " << filter_velocity.x() << " v_y: " << filter_velocity.y() << " v_z: " << filter_velocity.z());
+    } 
     msg_pub.publish(filter_radar_msg);
   }
 private:

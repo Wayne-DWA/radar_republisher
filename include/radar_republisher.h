@@ -202,15 +202,15 @@ public:
     pc2_raw_msg->header = eagle_msg.header;
     return pc2_raw_msg;
   }
-  PointCloud2ConstPtr filter(const PointCloud2ConstPtr& radar_msg) {
+  std::pair<PointCloud2ConstPtr, Eigen::Vector3d> filter(const PointCloud2ConstPtr& radar_msg) {
     sensor_msgs::PointCloud2 outlier_radar_msg;
     sensor_msgs::PointCloud2 inlier_radar_msg;
     Eigen::Vector3d v_r, sigma_v_r;
     ego_velocity_estimator_.estimate(*radar_msg, v_r, sigma_v_r, inlier_radar_msg, outlier_radar_msg);
-        // Create a shared pointer for the inlier message
+    // Create a shared pointer for the inlier message
     PointCloud2Ptr inlier_radar_msg_ptr = boost::make_shared<sensor_msgs::PointCloud2>(inlier_radar_msg);
-
-    return inlier_radar_msg_ptr;
+    
+    return std::make_pair(inlier_radar_msg_ptr, v_r);
   }
 
 
