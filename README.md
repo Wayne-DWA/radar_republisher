@@ -4,9 +4,11 @@ This package provides ROS1 interfaces to convert various radar msg into ```senso
 
 ## Usage
 
+1. Modify the topic name in the launchfile
+2. Launch radar republisher
 ```bash
-# Launch as a ROS1 node
-rosrun radar_republisher radar_republisher_node
+  # Launch as a ROS1 node
+  roslaunch radar_republisher radar_repub.launch
 ```
 - In/Out Topics:
   - Input topic: **/radar_topic_pc** or **/radar_topic_pc2**
