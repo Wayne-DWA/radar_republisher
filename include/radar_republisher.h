@@ -174,7 +174,8 @@ public:
         radarpoint_raw.y = ars_raw.points[i].y;
         radarpoint_raw.z = ars_raw.points[i].z;
         radarpoint_raw.intensity = ars_raw.points[i].intensity;
-        radarpoint_raw.doppler = ars_raw.points[i].doppler_std;
+        //! ARS548 radar doppler is negative
+        radarpoint_raw.doppler = -ars_raw.points[i].doppler_std;
         radarcloud_raw->points.push_back(radarpoint_raw);
     }
     pcl::toROSMsg(*radarcloud_raw, *pc2_raw_msg);
