@@ -29,6 +29,8 @@ public:
     nh.param<bool>("lsq_filter", lsq_filter, false);
 
     msg_pub = nh.advertise<sensor_msgs::PointCloud2>("/radar_pc2", 10);
+    // add velocity publisher
+    vel_pub = nh.advertise<geometry_msgs::Vector3Stamped>("/radar_velocity", 10);
   }
 
   void pc2_callback(const sensor_msgs::PointCloud2::ConstPtr&  hugin_msg) {
@@ -48,6 +50,12 @@ public:
         ROS_INFO_STREAM_THROTTLE(1, "v_x: " << filter_velocity.x() << " v_y: " << filter_velocity.y() << " v_z: " << filter_velocity.z());
       }
       msg_pub.publish(filter_radar_msg);
+      geometry_msgs::Vector3Stamped velocity_msg;
+      velocity_msg.header = hugin_msg->header;
+      velocity_msg.vector.x = filter_velocity.x();
+      velocity_msg.vector.y = filter_velocity.y();
+      velocity_msg.vector.z = filter_velocity.z();
+      vel_pub.publish(velocity_msg);
     }
     else 
     {
@@ -73,6 +81,12 @@ public:
         ROS_INFO_STREAM_THROTTLE(1, "v_x: " << filter_velocity.x() << " v_y: " << filter_velocity.y() << " v_z: " << filter_velocity.z());
       }
       msg_pub.publish(filter_radar_msg);
+      geometry_msgs::Vector3Stamped velocity_msg;
+      velocity_msg.header = eagle_msg->header;
+      velocity_msg.vector.x = filter_velocity.x();
+      velocity_msg.vector.y = filter_velocity.y();
+      velocity_msg.vector.z = filter_velocity.z();
+      vel_pub.publish(velocity_msg);
     }
     else 
     {
@@ -97,6 +111,12 @@ public:
         ROS_INFO_STREAM_THROTTLE(1, "v_x: " << filter_velocity.x() << " v_y: " << filter_velocity.y() << " v_z: " << filter_velocity.z());
       }
       msg_pub.publish(filter_radar_msg);
+      geometry_msgs::Vector3Stamped velocity_msg;
+      velocity_msg.header = ars_msg->header;
+      velocity_msg.vector.x = filter_velocity.x();
+      velocity_msg.vector.y = filter_velocity.y();
+      velocity_msg.vector.z = filter_velocity.z();
+      vel_pub.publish(velocity_msg);
     }
     else 
     {
@@ -121,6 +141,12 @@ public:
         ROS_INFO_STREAM_THROTTLE(1, "v_x: " << filter_velocity.x() << " v_y: " << filter_velocity.y() << " v_z: " << filter_velocity.z());
       }
       msg_pub.publish(filter_radar_msg);
+      geometry_msgs::Vector3Stamped velocity_msg;
+      velocity_msg.header = eagle_msg->header;
+      velocity_msg.vector.x = filter_velocity.x();
+      velocity_msg.vector.y = filter_velocity.y();
+      velocity_msg.vector.z = filter_velocity.z();
+      vel_pub.publish(velocity_msg);
     }
     else 
     {
@@ -135,6 +161,7 @@ private:
   ros::Subscriber ars_msg_sub;
   ros::Subscriber eagle_pc2_sub;
   ros::Publisher msg_pub;
+  ros::Publisher vel_pub;
 
   RadarMsgConverter RadarConverter;
   bool debug;

@@ -5,6 +5,7 @@
 #include <pcl/pcl_macros.h>
 #include <sensor_msgs/PointCloud2.h>
 #include <sensor_msgs/PointCloud.h>
+#include <geometry_msgs/Vector3Stamped.h>
 #include <pcl/point_types.h>
 #include <pcl/point_cloud.h>
 #include <pcl/io/pcd_io.h>

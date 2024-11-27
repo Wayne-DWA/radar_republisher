@@ -41,6 +41,7 @@ static RadarPointCloudType toRadarPointCloudType(const Vector11& item, const Rad
   point.x             = item[idx.x_r];
   point.y             = item[idx.y_r];
   point.z             = item[idx.z_r];
+  //! doppler is negative from Doer RIO
   point.doppler       = -item[idx.doppler];
   point.intensity     = item[idx.snr_db];
   return point;
