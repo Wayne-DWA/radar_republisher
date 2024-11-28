@@ -83,6 +83,24 @@ POINT_CLOUD_REGISTER_POINT_STRUCT(ars_ros::Point,
     (float, elevation_std, elevation_std)
     (float, doppler_std, doppler_std)
 )
+namespace ars_ros_simple {
+  struct EIGEN_ALIGN16 Point {
+      PCL_ADD_POINT4D;
+      float doppler;
+      float intensity;
+      float doppler_std;
+      EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+  };
+}  // namespace ars_ros
+
+POINT_CLOUD_REGISTER_POINT_STRUCT(ars_ros_simple::Point,
+    (float, x, x)
+    (float, y, y)
+    (float, z, z)
+    (float, doppler, doppler)
+    (float, intensity, intensity)
+    (float, doppler_std, doppler_std)
+)
 namespace eagle_ros {
   struct EIGEN_ALIGN16 Point {
       PCL_ADD_POINT4D;
@@ -129,15 +147,18 @@ public:
     RadarPointCloudType radarpoint_raw;
     for (size_t i = 0; i < hugin_raw->size(); ++i)
     {
-        radarpoint_raw.x = hugin_raw->at(i).x;
-        radarpoint_raw.y = hugin_raw->at(i).y;
-        radarpoint_raw.z = hugin_raw->at(i).z;
-        radarpoint_raw.intensity = hugin_raw->at(i).power;
-        radarpoint_raw.doppler = hugin_raw->at(i).doppler;
-        radarcloud_raw->points.push_back(radarpoint_raw);
+      //! Hugin has a different coordinate system compared to Radar
+      radarpoint_raw.x = hugin_raw->at(i).y;
+      radarpoint_raw.y = -hugin_raw->at(i).x;
+      radarpoint_raw.z = hugin_raw->at(i).z;
+      radarpoint_raw.intensity = hugin_raw->at(i).power;
+      radarpoint_raw.doppler = hugin_raw->at(i).doppler;
+      radarcloud_raw->points.push_back(radarpoint_raw);
     }
     pcl::toROSMsg(*radarcloud_raw, *pc2_raw_msg);
     pc2_raw_msg->header = radar_msg.header;
+    //! some radar data has a different frame_id
+    pc2_raw_msg->header.frame_id = "hugin_radar";
     return pc2_raw_msg;
   }
   PointCloud2ConstPtr convert(const PointCloud& radar_msg) {
@@ -175,12 +196,34 @@ public:
         radarpoint_raw.y = ars_raw.points[i].y;
         radarpoint_raw.z = ars_raw.points[i].z;
         radarpoint_raw.intensity = ars_raw.points[i].intensity;
-        //! ARS548 radar doppler is negative
-        radarpoint_raw.doppler = -ars_raw.points[i].doppler_std;
+        radarpoint_raw.doppler = ars_raw.points[i].doppler;
         radarcloud_raw->points.push_back(radarpoint_raw);
     }
     pcl::toROSMsg(*radarcloud_raw, *pc2_raw_msg);
     pc2_raw_msg->header = ars_msg.header;
+    return pc2_raw_msg;
+  }
+  PointCloud2ConstPtr convert_simple_ars(const PointCloud2& ars_simple_msg){
+    //********** Convert ars_ros_msg to RadarPointCloud **********
+    pcl::PointCloud<ars_ros_simple::Point> ars_raw;
+    pcl::PointCloud<RadarPointCloudType>::Ptr radarcloud_raw( new pcl::PointCloud<RadarPointCloudType> );
+    pcl::fromROSMsg(ars_simple_msg, ars_raw);
+    int point_size = ars_raw.points.size();
+    radarcloud_raw->reserve(point_size);
+    RadarPointCloudType radarpoint_raw;
+    for (size_t i = 0; i < point_size; ++i)
+    {
+        radarpoint_raw.x = ars_raw.points[i].x;
+        radarpoint_raw.y = ars_raw.points[i].y;
+        radarpoint_raw.z = ars_raw.points[i].z;
+        radarpoint_raw.intensity = ars_raw.points[i].intensity;
+        radarpoint_raw.doppler = ars_raw.points[i].doppler;
+        radarcloud_raw->points.push_back(radarpoint_raw);
+    }
+    pcl::toROSMsg(*radarcloud_raw, *pc2_raw_msg);
+    pc2_raw_msg->header = ars_simple_msg.header;
+    //! some radar data has a different frame_id
+    pc2_raw_msg->header.frame_id = "ars_radar";
     return pc2_raw_msg;
   }
   PointCloud2ConstPtr convert_eagle(const PointCloud2& eagle_msg){
