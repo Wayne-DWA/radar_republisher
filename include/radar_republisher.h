@@ -6,6 +6,7 @@
 #include <sensor_msgs/PointCloud2.h>
 #include <sensor_msgs/PointCloud.h>
 #include <geometry_msgs/Vector3Stamped.h>
+#include <geometry_msgs/TwistWithCovarianceStamped.h>
 #include <pcl/point_types.h>
 #include <pcl/point_cloud.h>
 #include <pcl/io/pcd_io.h>
@@ -15,6 +16,7 @@ using PointCloud2 = sensor_msgs::PointCloud2;
 using PointCloud = sensor_msgs::PointCloud;
 using PointCloud2Ptr = sensor_msgs::PointCloud2::Ptr;
 using PointCloud2ConstPtr = sensor_msgs::PointCloud2::ConstPtr;
+typedef pcl::PointXYZI PointT;
 
 struct HuginPointCloudType
 {
@@ -216,14 +218,14 @@ public:
         radarpoint_raw.x = ars_raw.points[i].x;
         radarpoint_raw.y = ars_raw.points[i].y;
         radarpoint_raw.z = ars_raw.points[i].z;
-        radarpoint_raw.intensity = ars_raw.points[i].intensity;
+        radarpoint_raw.intensity = std::abs(ars_raw.points[i].intensity);
         radarpoint_raw.doppler = ars_raw.points[i].doppler;
         radarcloud_raw->points.push_back(radarpoint_raw);
     }
     pcl::toROSMsg(*radarcloud_raw, *pc2_raw_msg);
     pc2_raw_msg->header = ars_simple_msg.header;
     //! some radar data has a different frame_id
-    pc2_raw_msg->header.frame_id = "ars_radar";
+    pc2_raw_msg->header.frame_id = "base_link";
     return pc2_raw_msg;
   }
   PointCloud2ConstPtr convert_eagle(const PointCloud2& eagle_msg){

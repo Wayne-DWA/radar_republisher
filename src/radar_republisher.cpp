@@ -34,6 +34,8 @@ public:
     msg_pub = nh.advertise<sensor_msgs::PointCloud2>("/radar_pc2", 10);
     // add velocity publisher
     vel_pub = nh.advertise<geometry_msgs::Vector3Stamped>("/radar_velocity", 10);
+    twist_pub = nh.advertise<geometry_msgs::TwistWithCovarianceStamped>("/radar_twist", 10);
+
   }
 
   void pc2_callback(const sensor_msgs::PointCloud2::ConstPtr&  hugin_msg) {
@@ -120,6 +122,12 @@ public:
       velocity_msg.vector.y = filter_velocity.y();
       velocity_msg.vector.z = filter_velocity.z();
       vel_pub.publish(velocity_msg);
+      geometry_msgs::TwistWithCovarianceStamped twist_msg;
+      twist_msg.header = ars_msg->header;
+      twist_msg.twist.twist.linear.x = filter_velocity.x();
+      twist_msg.twist.twist.linear.y = filter_velocity.y();
+      twist_msg.twist.twist.linear.z = filter_velocity.z();
+      twist_pub.publish(twist_msg);
     }
     else 
     {
@@ -196,6 +204,7 @@ private:
   ros::Subscriber eagle_pc2_sub;
   ros::Publisher msg_pub;
   ros::Publisher vel_pub;
+  ros::Publisher twist_pub;
 
   RadarMsgConverter RadarConverter;
   bool debug;

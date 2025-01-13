@@ -38,10 +38,10 @@ typedef Eigen::AngleAxisd AngleAxis;
 struct RadarEgoVelocityEstimatorConfig
 {
  float min_dist = 0.5;
- float max_dist = 200;
- float min_db = 3;
+ float max_dist = 400;
+ float min_db = 0;
  float elevation_thresh_deg = 180;
- float azimuth_thresh_deg = 90;
+ float azimuth_thresh_deg = 180;
  float doppler_velocity_correction_factor = 1;
  
  float thresh_zero_velocity = 0.05; //Below this is recognized as inlier (m/s)
