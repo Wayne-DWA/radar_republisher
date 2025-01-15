@@ -18,7 +18,9 @@ public:
     std::string radar_topic_ars_simple;
     nh.param<std::string>("radar_topic_ars_simple", radar_topic_ars_simple, "/ars548_simple_pc");
     std::string radar_topic_eagle_pc2;
-    nh.param<std::string>("radar_topic_eagle_pc2", radar_topic_eagle_pc2, "/eagle_pc2");    
+    nh.param<std::string>("radar_topic_eagle_pc2", radar_topic_eagle_pc2, "/eagle_pc2");  
+    std::string radar_topic_altos;
+    nh.param<std::string>("radar_topic_altos", radar_topic_altos, "/altosRadarV2");    
     //pointcloud2
     pc2_msg_sub = nh.subscribe(radar_topic_pc2, 10, &RadarRepublisher::pc2_callback, this);
     //pointcloud
@@ -28,6 +30,9 @@ public:
     ars_simple_msg_sub = nh.subscribe(radar_topic_ars_simple, 10, &RadarRepublisher::ars_simple_pc2_callback, this);
     ///! pointcloud2 eagle ros msg
     eagle_pc2_sub = nh.subscribe(radar_topic_eagle_pc2, 10, &RadarRepublisher::eagle_pc2_callback, this);
+    altos_sub = nh.subscribe(radar_topic_altos, 10, &RadarRepublisher::altos_callback, this);
+
+
     nh.param<bool>("debug_mode", debug, true);
     nh.param<bool>("lsq_filter", lsq_filter, false);
 
@@ -100,8 +105,10 @@ public:
     }
   }
   void ars_pc2_callback(const sensor_msgs::PointCloud2::ConstPtr&  ars_msg) {
-    auto raw_msg_size = ars_msg->width;
+    // auto raw_msg_size = ars_msg->width;
     auto radar_msg = RadarConverter.convert_ars(*ars_msg);
+    auto raw_msg_size = radar_msg->width;
+
     if (lsq_filter)
     {
       auto filter_result = RadarConverter.filter(radar_msg);
@@ -195,6 +202,40 @@ public:
       msg_pub.publish(filter_radar_msg);
     }
   }
+  void altos_callback(const sensor_msgs::PointCloud2::ConstPtr& altos_msg)
+  {
+    //filter the nan value
+    auto radar_msg = RadarConverter.convert_altos(*altos_msg);
+    auto raw_msg_size = radar_msg->width;
+
+    if (lsq_filter)
+    {
+      auto filter_result = RadarConverter.filter(radar_msg);
+      const auto filter_radar_msg = filter_result.first;
+      const auto filter_velocity = filter_result.second;
+      auto filter_msg_size = filter_radar_msg->width;
+      auto lost_msg_size = raw_msg_size - filter_msg_size;
+      float lost_rate = 100 * (static_cast<float>(lost_msg_size) / raw_msg_size);
+      if(debug)
+      {
+        ROS_INFO_STREAM_THROTTLE(1, "size of lost radar points: " << lost_msg_size << "  lost rate: " << lost_rate << " %");
+        ROS_INFO_STREAM_THROTTLE(1, "v_x: " << filter_velocity.x() << " v_y: " << filter_velocity.y() << " v_z: " << filter_velocity.z());
+      }
+      msg_pub.publish(filter_radar_msg);
+      geometry_msgs::Vector3Stamped velocity_msg;
+      velocity_msg.header = altos_msg->header;
+      velocity_msg.vector.x = filter_velocity.x();
+      velocity_msg.vector.y = filter_velocity.y();
+      velocity_msg.vector.z = filter_velocity.z();
+      vel_pub.publish(velocity_msg);
+    }
+    else 
+    {
+      auto filter_radar_msg = radar_msg;
+      msg_pub.publish(filter_radar_msg);
+    }
+
+  }
 private:
   ros::NodeHandle nh;
   ros::Subscriber pc2_msg_sub;
@@ -202,6 +243,7 @@ private:
   ros::Subscriber ars_msg_sub;
   ros::Subscriber ars_simple_msg_sub;
   ros::Subscriber eagle_pc2_sub;
+  ros::Subscriber altos_sub;
   ros::Publisher msg_pub;
   ros::Publisher vel_pub;
   ros::Publisher twist_pub;

@@ -1,5 +1,5 @@
 #pragma once
-
+#include <chrono>
 #include <pcl_conversions/pcl_conversions.h>
 #include <pcl/PCLPointCloud2.h>
 #include <pcl/pcl_macros.h>
@@ -11,6 +11,7 @@
 #include <pcl/point_cloud.h>
 #include <pcl/io/pcd_io.h>
 #include "radar_ego_velocity_estimator.hpp"
+#include "RansacEgoVelocity.h"
 
 using PointCloud2 = sensor_msgs::PointCloud2;
 using PointCloud = sensor_msgs::PointCloud;
@@ -135,6 +136,24 @@ POINT_CLOUD_REGISTER_POINT_STRUCT(eagle_ros::Point,
     (float, dopplerAccu, dopplerAccu)
     (float, recoveredSpeed, recoveredSpeed)
 )
+namespace altos {
+  struct EIGEN_ALIGN16 Point {
+      PCL_ADD_POINT4D;
+      float h; // doppler velocity of point
+      float s; // RCS of point
+      float v; //direction of point (-1:opposite 0:static 1:same)
+      EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+  };
+}  // namespace altos
+
+POINT_CLOUD_REGISTER_POINT_STRUCT(altos::Point,
+    (float, x, x)
+    (float, y, y)
+    (float, z, z)
+    (float, h, h)
+    (float, s, s)
+    (float, v, v)
+)
 class RadarMsgConverter {
 public:
   RadarMsgConverter() {
@@ -249,18 +268,115 @@ public:
     pc2_raw_msg->header = eagle_msg.header;
     return pc2_raw_msg;
   }
+  PointCloud2ConstPtr convert_altos(const PointCloud2& altos_msg){
+    //********** Convert altos_msg to RadarPointCloud **********
+    pcl::PointCloud<altos::Point> altos_raw;
+    pcl::PointCloud<RadarPointCloudType>::Ptr radarcloud_raw( new pcl::PointCloud<RadarPointCloudType> );
+    pcl::fromROSMsg(altos_msg, altos_raw);
+    int point_size = altos_raw.points.size();
+    // radarcloud_raw->reserve(point_size);
+    RadarPointCloudType radarpoint_raw;
+    for (size_t i = 0; i < point_size; ++i)
+    {
+        //altos radar point reserves 16000 Points per frame, the valid points should be filtered
+        if (altos_raw.points[i].x < 0.5) continue;
+        radarpoint_raw.x = altos_raw.points[i].x;
+        radarpoint_raw.y = altos_raw.points[i].y;
+        radarpoint_raw.z = altos_raw.points[i].z;
+        radarpoint_raw.intensity = altos_raw.points[i].s;
+        radarpoint_raw.doppler = altos_raw.points[i].h;
+        radarcloud_raw->points.push_back(radarpoint_raw);
+    }
+    pcl::toROSMsg(*radarcloud_raw, *pc2_raw_msg);
+    pc2_raw_msg->header = altos_msg.header;
+    return pc2_raw_msg;
+  }
+
+
   std::pair<PointCloud2ConstPtr, Eigen::Vector3d> filter(const PointCloud2ConstPtr& radar_msg) {
+    //convert radar_msg to RadarPoint(x, y, z, doppler)
+    // compare the time consumption of the two methods
+    using Clock = std::chrono::high_resolution_clock;
+    auto lsq_start = Clock::now();
+    auto radar_points = convertPointCloudToRadarPoints(radar_msg);
+    if (radar_points.empty()) {
+      std::cout << "No valid radar points found" << std::endl;
+      return std::make_pair(radar_msg, Eigen::Vector3d::Zero());
+    }
+    RansacEgoVelocity ransac_ego_evel(100, 0.5); // max_iterations = 100, tolerance = 0.5
+    RANSACResult result = ransac_ego_evel.calculate(radar_points);
+    auto lsq_end = Clock::now();
+    double lsq_time = std::chrono::duration<double, std::milli>(lsq_end - lsq_start).count();
+    std::cout << "Least squares method time consumption: " << lsq_time << " ms" << std::endl;
+
+    // std::cout << "Ego velocity: " << result.ego_velocity.transpose() << std::endl;
+    // std::cout << "Covariance matrix: " << std::endl << result.covariance << std::endl;
+    // std::cout << "Number of inliers: " << result.inliers.size() << std::endl;
+    // std::cout << "Number of outliers: " << result.outliers.size() << std::endl;
+
     sensor_msgs::PointCloud2 outlier_radar_msg;
     sensor_msgs::PointCloud2 inlier_radar_msg;
     Eigen::Vector3d v_r, sigma_v_r;
     ego_velocity_estimator_.estimate(*radar_msg, v_r, sigma_v_r, inlier_radar_msg, outlier_radar_msg);
+    // std::cout << "radar msg size: " << radar_msg->width << std::endl;
+    // std::cout << "inlier size: " << inlier_radar_msg.width << std::endl;
     // Create a shared pointer for the inlier message
     PointCloud2Ptr inlier_radar_msg_ptr = boost::make_shared<sensor_msgs::PointCloud2>(inlier_radar_msg);
+    auto reve_end = Clock::now();
+    double reve_time = std::chrono::duration<double, std::milli>(reve_end - lsq_end).count();
+    // std::cout << "REVE method time consumption: " << reve_time << " ms" << std::endl;
     
     return std::make_pair(inlier_radar_msg_ptr, v_r);
   }
 
+  std::vector<RadarPoint> convertPointCloudToRadarPoints(const sensor_msgs::PointCloud2ConstPtr& radar_msg) {
+      // Convert PointCloud2 message to PCL point cloud
+      pcl::PointCloud<RadarPointCloudType> pcl_cloud;
+      pcl::fromROSMsg(*radar_msg, pcl_cloud);
 
+      std::vector<RadarPoint> radar_points;
+      radar_points.reserve(pcl_cloud.points.size());
+
+      for (const auto& point : pcl_cloud.points) {
+          // Extract the 3D point and Doppler velocity
+          Eigen::Vector3d normal_vector(point.x, point.y, point.z);
+          double doppler_velocity = point.doppler; // 
+
+          // Normalize the direction vector
+          double norm = normal_vector.norm();
+          if (norm > 1e-6) { // Avoid division by zero
+              normal_vector /= norm;
+
+              // Add the point to the radar_points vector
+              radar_points.push_back({normal_vector, doppler_velocity});
+          }
+      }
+      return radar_points;
+  }
+  sensor_msgs::PointCloud2 convertRadarPointsToPointCloud(const std::vector<RadarPoint>& radar_points) {
+    // Create a PCL PointCloud object
+    pcl::PointCloud<pcl::PointXYZI> pcl_cloud;
+
+    // Populate the PCL PointCloud
+    for (const auto& point : radar_points) {
+        pcl::PointXYZI pcl_point;
+        pcl_point.x = point.normal_vector[0]; // X coordinate
+        pcl_point.y = point.normal_vector[1]; // Y coordinate
+        pcl_point.z = point.normal_vector[2]; // Z coordinate
+        pcl_point.intensity = point.doppler_velocity; // Use intensity field for Doppler velocity
+        pcl_cloud.points.push_back(pcl_point);
+    }
+
+    // Convert PCL PointCloud to ROS PointCloud2 message
+    sensor_msgs::PointCloud2 cloud_msg;
+    pcl::toROSMsg(pcl_cloud, cloud_msg);
+
+    // Set additional fields in the ROS message
+    cloud_msg.header.frame_id = "radar_frame"; // Set appropriate frame
+    cloud_msg.header.stamp = ros::Time::now();
+
+    return cloud_msg;
+}
 private:
   PointCloud2Ptr pc2_raw_msg;
   RadarEgoVelocityEstimator ego_velocity_estimator_;
