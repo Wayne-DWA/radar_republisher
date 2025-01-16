@@ -93,7 +93,10 @@ bool RadarEgoVelocityEstimator::estimate(const sensor_msgs::PointCloud2& radar_s
       //   " " << angles::to_degrees(azimuth) << " " << angles::to_degrees(elevation) << endl;
       // }
     }
-
+    if((radar_scan->size() - valid_targets.size()) / radar_scan->size() > 0.2)
+    {
+      cout<<"[WARNING]: more than 20% of the points are filtered by bypass filter, pls check the params"<<endl;
+    }
     if (valid_targets.size() > 2)
     {
       // check for zero velocity
@@ -264,7 +267,7 @@ bool RadarEgoVelocityEstimator::solve3DFull(const Matrix& radar_data,
   Real cond = svd.singularValues()(0) / svd.singularValues()(svd.singularValues().size() - 1);
 
   // cond > 1000, error occurs
-  if (1)//std::fabs(cond) < 1.0e3
+  if (std::fabs(cond) < 1.0e3)//
   {
     if (config_.use_cholesky_instead_of_bdcsvd)
     {
