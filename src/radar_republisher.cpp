@@ -9,6 +9,9 @@ namespace radar_republisher {
 class RadarRepublisher {
 public:
   RadarRepublisher() : nh("~") {
+
+    nh.param<bool>("using_reve", reve_en, true);
+    RadarConverter.reve_en = reve_en;
     std::string radar_topic_pc;
     nh.param<std::string>("radar_topic_pc", radar_topic_pc, "/radar_pc");
     std::string radar_topic_pc2;
@@ -247,8 +250,9 @@ private:
   ros::Publisher msg_pub;
   ros::Publisher vel_pub;
   ros::Publisher twist_pub;
-
+  bool reve_en;
   RadarMsgConverter RadarConverter;
+
   bool debug;
   bool lsq_filter;
 };

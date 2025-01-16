@@ -2,12 +2,14 @@
     <node name="radar_republisher_node" pkg="radar_republisher" type="radar_republisher_node" output="screen">
         <!-- Add any necessary arguments or parameters here -->
         <param name = "radar_topic_pc"  value = "/radar_enhanced_pcl_1_" />
-        <param name = "radar_topic_pc2" value = "/hugin_raf_1/radar_data" />
-        <param name = "radar_topic_ars" value = "/ars548_" />
+        <param name = "radar_topic_pc2" value = "/hugin_raf_1/radar_data_" />
+        <param name = "radar_topic_ars" value = "/ars548" />
         <param name = "radar_topic_ars_simple" value = "/ars548_process/point_cloud2_" />
         <param name = "radar_topic_eagle_pc"  value = "/radar_enhanced_pcl_" />
+        <param name = "radar_topic_altos" value = "/altosRadarV2" />
         <param name = "debug_mode"      value = "true" />
         <param name = "lsq_filter"      value = "true" />
+        <param name = "using_reve"      value = "false" />
 
     </node>
 </launch>
