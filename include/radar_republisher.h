@@ -158,6 +158,7 @@ class RadarMsgConverter {
 public:
   RadarMsgConverter() {
     pc2_raw_msg.reset(new PointCloud2);
+    reve_en = true;
   }
 
   PointCloud2ConstPtr convert(const PointCloud2& radar_msg) {
@@ -297,36 +298,56 @@ public:
     //convert radar_msg to RadarPoint(x, y, z, doppler)
     // compare the time consumption of the two methods
     using Clock = std::chrono::high_resolution_clock;
-    auto lsq_start = Clock::now();
-    auto radar_points = convertPointCloudToRadarPoints(radar_msg);
-    if (radar_points.empty()) {
-      std::cout << "No valid radar points found" << std::endl;
-      return std::make_pair(radar_msg, Eigen::Vector3d::Zero());
+
+    if(!reve_en)
+    {
+      auto lsq_start = Clock::now();
+      auto radar_points = convertPointCloudToRadarPoints(radar_msg);
+      if (radar_points.empty()) {
+        std::cout << "[Ransca-LSQ]: No valid radar points found" << std::endl;
+        return std::make_pair(radar_msg, Eigen::Vector3d::Zero());
+      }
+      RansacEgoVelocity ransac_ego_evel(100, 0.5); // max_iterations = 100, tolerance = 0.5
+      RANSACResult result = ransac_ego_evel.calculate(radar_points);
+      auto lsq_end = Clock::now();
+      double lsq_time = std::chrono::duration<double, std::milli>(lsq_end - lsq_start).count();
+      // std::cout << "Least squares method time consumption: " << lsq_time << " ms" << std::endl;
+      // convert result to PointCloud2
+      sensor_msgs::PointCloud2 outlier_radar_msg;
+      sensor_msgs::PointCloud2 inlier_radar_msg;
+      inlier_radar_msg = convertRadarPointsToPointCloud(result.inliers);
+      outlier_radar_msg = convertRadarPointsToPointCloud(result.outliers);
+      inlier_radar_msg.header = radar_msg->header;
+      outlier_radar_msg.header = radar_msg->header;
+      PointCloud2Ptr inlier_radar_msg_ptr = boost::make_shared<sensor_msgs::PointCloud2>(inlier_radar_msg);
+      Eigen::Vector3d v_r, sigma_v_r;
+      v_r = result.ego_velocity;
+      sigma_v_r = result.covariance.diagonal();
+      std::cout << "[Ransca-LSQ]: Ego velocity is " << result.ego_velocity.transpose() << std::endl;
+      return std::make_pair(inlier_radar_msg_ptr, v_r);
+
+      // std::cout << "Covariance matrix: " << std::endl << result.covariance << std::endl;
+      // std::cout << "Number of inliers: " << result.inliers.size() << std::endl;
+      // std::cout << "Number of outliers: " << result.outliers.size() << std::endl;
     }
-    RansacEgoVelocity ransac_ego_evel(100, 0.5); // max_iterations = 100, tolerance = 0.5
-    RANSACResult result = ransac_ego_evel.calculate(radar_points);
-    auto lsq_end = Clock::now();
-    double lsq_time = std::chrono::duration<double, std::milli>(lsq_end - lsq_start).count();
-    std::cout << "Least squares method time consumption: " << lsq_time << " ms" << std::endl;
+    else
+    {
+      sensor_msgs::PointCloud2 outlier_radar_msg;
+      sensor_msgs::PointCloud2 inlier_radar_msg;
+      auto reve_start = Clock::now();
 
-    // std::cout << "Ego velocity: " << result.ego_velocity.transpose() << std::endl;
-    // std::cout << "Covariance matrix: " << std::endl << result.covariance << std::endl;
-    // std::cout << "Number of inliers: " << result.inliers.size() << std::endl;
-    // std::cout << "Number of outliers: " << result.outliers.size() << std::endl;
+      Eigen::Vector3d v_r, sigma_v_r;
+      ego_velocity_estimator_.estimate(*radar_msg, v_r, sigma_v_r, inlier_radar_msg, outlier_radar_msg);
+      std::cout << "[REVE]: radar msg size is " << radar_msg->width << std::endl;
+      // std::cout << "inlier size: " << inlier_radar_msg.width << std::endl;
+      // Create a shared pointer for the inlier message
+      PointCloud2Ptr inlier_radar_msg_ptr = boost::make_shared<sensor_msgs::PointCloud2>(inlier_radar_msg);
+      auto reve_end = Clock::now();
+      double reve_time = std::chrono::duration<double, std::milli>(reve_end - reve_start).count();
+      // std::cout << "REVE method time consumption: " << reve_time << " ms" << std::endl;
 
-    sensor_msgs::PointCloud2 outlier_radar_msg;
-    sensor_msgs::PointCloud2 inlier_radar_msg;
-    Eigen::Vector3d v_r, sigma_v_r;
-    ego_velocity_estimator_.estimate(*radar_msg, v_r, sigma_v_r, inlier_radar_msg, outlier_radar_msg);
-    // std::cout << "radar msg size: " << radar_msg->width << std::endl;
-    // std::cout << "inlier size: " << inlier_radar_msg.width << std::endl;
-    // Create a shared pointer for the inlier message
-    PointCloud2Ptr inlier_radar_msg_ptr = boost::make_shared<sensor_msgs::PointCloud2>(inlier_radar_msg);
-    auto reve_end = Clock::now();
-    double reve_time = std::chrono::duration<double, std::milli>(reve_end - lsq_end).count();
-    // std::cout << "REVE method time consumption: " << reve_time << " ms" << std::endl;
-    
-    return std::make_pair(inlier_radar_msg_ptr, v_r);
+      return std::make_pair(inlier_radar_msg_ptr, v_r);
+    }
   }
 
   std::vector<RadarPoint> convertPointCloudToRadarPoints(const sensor_msgs::PointCloud2ConstPtr& radar_msg) {
@@ -340,6 +361,7 @@ public:
       for (const auto& point : pcl_cloud.points) {
           // Extract the 3D point and Doppler velocity
           Eigen::Vector3d normal_vector(point.x, point.y, point.z);
+          Eigen::Vector3d position(point.x, point.y, point.z);
           double doppler_velocity = point.doppler; // 
 
           // Normalize the direction vector
@@ -348,22 +370,21 @@ public:
               normal_vector /= norm;
 
               // Add the point to the radar_points vector
-              radar_points.push_back({normal_vector, doppler_velocity});
+              radar_points.push_back({normal_vector, position, doppler_velocity});
           }
       }
       return radar_points;
   }
   sensor_msgs::PointCloud2 convertRadarPointsToPointCloud(const std::vector<RadarPoint>& radar_points) {
     // Create a PCL PointCloud object
-    pcl::PointCloud<pcl::PointXYZI> pcl_cloud;
-
+    pcl::PointCloud<RadarPointCloudType> pcl_cloud;
     // Populate the PCL PointCloud
     for (const auto& point : radar_points) {
-        pcl::PointXYZI pcl_point;
-        pcl_point.x = point.normal_vector[0]; // X coordinate
-        pcl_point.y = point.normal_vector[1]; // Y coordinate
-        pcl_point.z = point.normal_vector[2]; // Z coordinate
-        pcl_point.intensity = point.doppler_velocity; // Use intensity field for Doppler velocity
+        RadarPointCloudType pcl_point;
+        pcl_point.x = point.position[0]; // X coordinate
+        pcl_point.y = point.position[1]; // Y coordinate
+        pcl_point.z = point.position[2]; // Z coordinate
+        pcl_point.doppler = point.doppler_velocity; // Use intensity field for Doppler velocity
         pcl_cloud.points.push_back(pcl_point);
     }
 
@@ -377,6 +398,8 @@ public:
 
     return cloud_msg;
 }
+
+bool reve_en;
 private:
   PointCloud2Ptr pc2_raw_msg;
   RadarEgoVelocityEstimator ego_velocity_estimator_;

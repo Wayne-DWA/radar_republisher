@@ -10,6 +10,7 @@
 
 struct RadarPoint {
     Eigen::Vector3d normal_vector; // Normalized vector [nx, ny, nz]
+    Eigen::Vector3d position;      // Position [x, y, z]
     double doppler_velocity;      // Doppler velocity
 };
 
