@@ -37,11 +37,11 @@ typedef Eigen::AngleAxisd AngleAxis;
 
 struct RadarEgoVelocityEstimatorConfig
 {
- float min_dist = 0.5;
- float max_dist = 400;
+ float min_dist = 0.5;    // min distance of valid detection
+ float max_dist = 400;    // max distance of valid detection
  float min_db = 0;
- float elevation_thresh_deg = 180;
- float azimuth_thresh_deg = 180;
+ float elevation_thresh_deg = 180; // threshold for elevation [deg]
+ float azimuth_thresh_deg = 180;   // threshold fo azimuth [deg]
  float doppler_velocity_correction_factor = 1;
  
  float thresh_zero_velocity = 0.05; //Below this is recognized as inlier (m/s)
@@ -57,7 +57,7 @@ struct RadarEgoVelocityEstimatorConfig
  float max_sigma_x = 0.2;
  float max_sigma_y = 0.2;
  float max_sigma_z = 0.2;
- float max_r_cond;
+ float max_r_cond = 1.0e3;
  bool use_cholesky_instead_of_bdcsvd = true;
 
  bool use_ransac = true;
