@@ -6,11 +6,7 @@
         <param name = "radar_topic_ars" value = "/ars548" />
         <param name = "radar_topic_ars_simple" value = "/ars548_process/point_cloud2_" />
         <param name = "radar_topic_eagle_pc"  value = "/radar_enhanced_pcl_" />
-        <param name = "radar_topic_altos" value = "/altosRadar" />
-        <param name = "radar_topic_hercules" value = "//continental/points" />
         <param name = "debug_mode"      value = "true" />
         <param name = "lsq_filter"      value = "true" />
-        <!-- if lsq_filter == true && using_reve == false, using rancac ego velocity filter-->
-        <param name = "using_reve"      value = "false" /> 
     </node>
 </launch>

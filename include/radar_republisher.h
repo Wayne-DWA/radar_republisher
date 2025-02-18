@@ -154,6 +154,28 @@ POINT_CLOUD_REGISTER_POINT_STRUCT(altos::Point,
     (float, s, s)
     (float, v, v)
 )
+namespace hercules {
+  struct EIGEN_ALIGN16 Point {
+      PCL_ADD_POINT4D;
+      float v; // doppler velocity of point
+      float r; //range
+      int8_t RCS; // RCS of point
+      float azimuth; //yaw
+      float elevation; //pitch
+      EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+  };
+}  // namespace altos
+
+POINT_CLOUD_REGISTER_POINT_STRUCT(hercules::Point,
+    (float, x, x)
+    (float, y, y)
+    (float, z, z)
+    (float, v, v)
+    (float, r, r)
+    (int8_t, RCS, RCS)
+    (float, azimuth, azimuth)
+    (float, elevation, elevation)
+)
 class RadarMsgConverter {
 public:
   RadarMsgConverter() {
@@ -292,7 +314,31 @@ public:
     pc2_raw_msg->header = altos_msg.header;
     return pc2_raw_msg;
   }
+  PointCloud2ConstPtr convert_hercules(const PointCloud2& hercules_msg){
+    //********** Convert altos_msg to RadarPointCloud **********
+    pcl::PointCloud<hercules::Point> hercules_raw;
+    pcl::PointCloud<RadarPointCloudType>::Ptr radarcloud_raw( new pcl::PointCloud<RadarPointCloudType> );
+    pcl::fromROSMsg(hercules_msg, hercules_raw);
+    int point_size = hercules_raw.points.size();
+    // radarcloud_raw->reserve(point_size);
+    RadarPointCloudType radarpoint_raw;
+    for (size_t i = 0; i < point_size; ++i)
+    {
+        //altos radar point reserves 16000 Points per frame, the valid points should be filtered
+        if (hercules_raw.points[i].x < 0.5) continue;
+        radarpoint_raw.x = hercules_raw.points[i].x;
+        radarpoint_raw.y = hercules_raw.points[i].y;
+        radarpoint_raw.z = hercules_raw.points[i].z;
+        radarpoint_raw.intensity = static_cast<float>(hercules_raw.points[i].RCS);
+        radarpoint_raw.intensity = 10.0;
 
+        radarpoint_raw.doppler = hercules_raw.points[i].v;
+        radarcloud_raw->points.push_back(radarpoint_raw);
+    }
+    pcl::toROSMsg(*radarcloud_raw, *pc2_raw_msg);
+    pc2_raw_msg->header = hercules_msg.header;
+    return pc2_raw_msg;
+  }
 
   std::pair<PointCloud2ConstPtr, Eigen::Vector3d> filter(const PointCloud2ConstPtr& radar_msg) {
     //convert radar_msg to RadarPoint(x, y, z, doppler)
@@ -323,7 +369,7 @@ public:
       Eigen::Vector3d v_r, sigma_v_r;
       v_r = result.ego_velocity;
       sigma_v_r = result.covariance.diagonal();
-      std::cout << "[Ransca-LSQ]: Ego velocity is " << result.ego_velocity.transpose() << std::endl;
+      // std::cout << "[Ransca-LSQ]: Ego velocity is " << result.ego_velocity.transpose() << std::endl;
       return std::make_pair(inlier_radar_msg_ptr, v_r);
 
       // std::cout << "Covariance matrix: " << std::endl << result.covariance << std::endl;
@@ -338,7 +384,7 @@ public:
 
       Eigen::Vector3d v_r, sigma_v_r;
       ego_velocity_estimator_.estimate(*radar_msg, v_r, sigma_v_r, inlier_radar_msg, outlier_radar_msg);
-      std::cout << "[REVE]: radar msg size is " << radar_msg->width << std::endl;
+      // std::cout << "[REVE]: radar msg size is " << radar_msg->width << std::endl;
       // std::cout << "inlier size: " << inlier_radar_msg.width << std::endl;
       // Create a shared pointer for the inlier message
       PointCloud2Ptr inlier_radar_msg_ptr = boost::make_shared<sensor_msgs::PointCloud2>(inlier_radar_msg);
